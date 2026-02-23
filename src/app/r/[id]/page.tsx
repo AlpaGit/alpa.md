@@ -57,6 +57,8 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
             One-time access key
             <br />
             Zero knowledge server
+            <br />
+            Auto-deleted after 48h
           </p>
         </div>
       </aside>

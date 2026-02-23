@@ -40,6 +40,8 @@ export default function Home() {
             Zero plaintext storage
             <br />
             One-time password reveal
+            <br />
+            Auto-deleted after 48h
           </p>
         </div>
       </aside>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Eye, EyeSlash, Link as LinkIcon } from "@phosphor-icons/react";
+import { Check, Copy, Eye, EyeSlash, Link as LinkIcon, Timer } from "@phosphor-icons/react";
 
 type ResultPanelProps = {
   readUrl: string;
@@ -141,6 +141,14 @@ export default function ResultPanel({ readUrl, password, onReset }: ResultPanelP
           </div>
           <p className="text-xs text-zinc-400">
             This password is shown once. Save it before leaving.
+          </p>
+        </div>
+
+        {/* Expiry notice */}
+        <div className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
+          <Timer size={16} weight="duotone" className="text-zinc-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            This document will be automatically deleted after <span className="font-medium text-zinc-700">48 hours</span>.
           </p>
         </div>
       </div>

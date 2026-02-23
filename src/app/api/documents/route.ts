@@ -6,9 +6,11 @@ import {
   encryptMarkdown,
   KDF_PARAMS,
 } from "@/lib/crypto";
-import { saveDocument } from "@/lib/storage";
+import { saveDocument, documentExists, purgeExpiredDocuments } from "@/lib/storage";
 import type { EncryptedDocument } from "@/types/document";
 import type { CreateDocumentResponse, ApiError } from "@/types/document";
+
+const MAX_ID_ATTEMPTS = 5;
 
 export async function POST(request: Request) {
   try {
@@ -32,7 +34,22 @@ export async function POST(request: Request) {
       );
     }
 
-    const documentId = generateDocumentId();
+    // Generate a unique document ID (retry on collision)
+    let documentId = "";
+    for (let i = 0; i < MAX_ID_ATTEMPTS; i++) {
+      const candidate = generateDocumentId();
+      if (!(await documentExists(candidate))) {
+        documentId = candidate;
+        break;
+      }
+    }
+    if (!documentId) {
+      return NextResponse.json<ApiError>(
+        { error: "Failed to generate a unique document ID. Please try again.", code: "server_error" },
+        { status: 500 },
+      );
+    }
+
     const password = generatePassword();
     const encrypted = encryptMarkdown(validation.markdown, password);
 
@@ -48,6 +65,9 @@ export async function POST(request: Request) {
     };
 
     await saveDocument(doc);
+
+    // Opportunistic cleanup — non-blocking, don't let it fail the request
+    purgeExpiredDocuments().catch(() => {});
 
     return NextResponse.json<CreateDocumentResponse>(
       {

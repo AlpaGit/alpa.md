@@ -56,6 +56,16 @@ function rowToDocument(row: DocumentRow): EncryptedDocument {
   };
 }
 
+const EXPIRY_HOURS = 48;
+
+/** Check whether a document ID already exists */
+export async function documentExists(id: string): Promise<boolean> {
+  const sql = getDb();
+  await ensureSchema();
+  const rows = await sql`SELECT 1 FROM documents WHERE id = ${id} LIMIT 1`;
+  return rows.length > 0;
+}
+
 /** Persist an encrypted document record */
 export async function saveDocument(doc: EncryptedDocument): Promise<void> {
   const sql = getDb();
@@ -82,4 +92,13 @@ export async function getDocumentById(
   const rows = await sql`SELECT * FROM documents WHERE id = ${id}`;
   if (rows.length === 0) return null;
   return rowToDocument(rows[0] as DocumentRow);
+}
+
+/** Delete all documents older than 48 hours. Returns the number of deleted rows. */
+export async function purgeExpiredDocuments(): Promise<number> {
+  const sql = getDb();
+  await ensureSchema();
+  const cutoff = new Date(Date.now() - EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
+  const rows = await sql`DELETE FROM documents WHERE created_at_iso < ${cutoff} RETURNING id`;
+  return rows.length;
 }
