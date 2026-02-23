@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import { ShieldCheck } from "@phosphor-icons/react/dist/ssr";
 import DecryptForm from "@/components/decrypt-form";
+
+export const metadata: Metadata = {
+  title: "Protected document",
+  description: "This document is encrypted. Enter the password to decrypt and view.",
+  robots: { index: false, follow: false },
+};
 
 type ReaderPageProps = {
   params: Promise<{ id: string }>;

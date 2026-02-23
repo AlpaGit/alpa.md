@@ -12,10 +12,45 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://alpa.md";
+
 export const metadata: Metadata = {
-  title: "alpa.md",
+  title: {
+    default: "alpa.md — Encrypted markdown sharing",
+    template: "%s | alpa.md",
+  },
   description:
-    "Share password-protected markdown documents securely. No plaintext ever stored.",
+    "Share password-protected markdown documents securely. AES-256-GCM encryption, zero-knowledge server. No plaintext ever stored.",
+  keywords: [
+    "markdown",
+    "encrypted",
+    "password-protected",
+    "sharing",
+    "secure",
+    "AES-256",
+    "privacy",
+    "zero-knowledge",
+  ],
+  metadataBase: new URL(siteUrl),
+  openGraph: {
+    title: "alpa.md — Encrypted markdown sharing",
+    description:
+      "Share markdown, keep it secret. Password-protected links with AES-256-GCM encryption.",
+    url: siteUrl,
+    siteName: "alpa.md",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "alpa.md — Encrypted markdown sharing",
+    description:
+      "Share markdown, keep it secret. Password-protected links with AES-256-GCM encryption.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
