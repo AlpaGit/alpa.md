@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   WifiSlash,
   LockKey,
+  FileText,
 } from "@phosphor-icons/react";
 import MarkdownRenderer from "@/components/markdown-renderer";
 
@@ -105,7 +106,22 @@ export default function DecryptForm({ documentId }: DecryptFormProps) {
   }
 
   if (status.state === "success") {
-    return <MarkdownRenderer content={status.markdown} />;
+    return (
+      <div className="space-y-6">
+        {/* Document header */}
+        <div className="flex items-center gap-3">
+          <FileText size={16} weight="duotone" className="text-accent-600 shrink-0" />
+          <span className="text-xs font-mono uppercase tracking-widest text-zinc-400">
+            Decrypted document
+          </span>
+        </div>
+
+        {/* Document container */}
+        <div className="rounded-2xl border border-zinc-200 bg-white px-8 py-10 md:px-10 md:py-12 shadow-sm">
+          <MarkdownRenderer content={status.markdown} />
+        </div>
+      </div>
+    );
   }
 
   // Terminal state: document not found
