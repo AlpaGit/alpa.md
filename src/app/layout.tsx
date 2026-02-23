@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Secret Markdown Reader",
+  title: "alpa.md",
   description:
     "Share password-protected markdown documents securely. No plaintext ever stored.",
 };
@@ -35,7 +35,7 @@ export default function RootLayout({
                 href="/"
                 className="text-sm font-medium tracking-tight text-zinc-950 hover:text-accent-700 transition-colors"
               >
-                secret.md
+                alpa.md
               </a>
               <span className="text-xs font-mono text-zinc-400 tracking-wide">
                 end-to-end encrypted
