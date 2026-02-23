@@ -1,4 +1,49 @@
+import { NextResponse } from "next/server";
+import type { ApiError } from "@/types/document";
+
 const MAX_MARKDOWN_BYTES = 200 * 1024; // 200 KB
+
+// Body size limits (bytes) — includes JSON overhead above the markdown limit
+const BODY_LIMIT_CREATE = 256 * 1024; // 256 KB
+const BODY_LIMIT_DECRYPT = 4 * 1024; // 4 KB (password only)
+
+/**
+ * Guard against oversized request bodies.
+ * Returns a 413 response if the Content-Length exceeds the limit, or null if OK.
+ * When Content-Length is absent, the body is read and checked instead.
+ */
+export async function guardBodySize(
+  request: Request,
+  maxBytes: number,
+): Promise<NextResponse<ApiError> | null> {
+  const cl = request.headers.get("content-length");
+  if (cl !== null) {
+    const size = parseInt(cl, 10);
+    if (!Number.isNaN(size) && size > maxBytes) {
+      return NextResponse.json<ApiError>(
+        { error: "Request body too large.", code: "too_large" },
+        { status: 413 },
+      );
+    }
+  }
+  return null;
+}
+
+/** Pre-configured guard for the create endpoint (256 KB) */
+export function guardCreateBody(request: Request) {
+  return guardBodySize(request, BODY_LIMIT_CREATE);
+}
+
+/** Pre-configured guard for the decrypt endpoint (4 KB) */
+export function guardDecryptBody(request: Request) {
+  return guardBodySize(request, BODY_LIMIT_DECRYPT);
+}
+
+/** Normalize text: CRLF → LF, strip null bytes and other C0 control chars (except \n \r \t) */
+function normalizeText(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/\r\n/g, "\n").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+}
 
 export type ValidationResult =
   | { valid: true; markdown: string }
@@ -14,9 +59,9 @@ export function validateMarkdown(raw: unknown): ValidationResult {
     };
   }
 
-  const trimmed = raw.trim();
+  const normalized = normalizeText(raw).trim();
 
-  if (trimmed.length === 0) {
+  if (normalized.length === 0) {
     return {
       valid: false,
       code: "empty_markdown",
@@ -24,7 +69,7 @@ export function validateMarkdown(raw: unknown): ValidationResult {
     };
   }
 
-  const byteLength = Buffer.byteLength(trimmed, "utf-8");
+  const byteLength = Buffer.byteLength(normalized, "utf-8");
   if (byteLength > MAX_MARKDOWN_BYTES) {
     return {
       valid: false,
@@ -33,7 +78,7 @@ export function validateMarkdown(raw: unknown): ValidationResult {
     };
   }
 
-  return { valid: true, markdown: trimmed };
+  return { valid: true, markdown: normalized };
 }
 
 /** Validate the password field on the decrypt endpoint */

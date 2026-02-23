@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { validateMarkdown } from "@/lib/validation";
+import { validateMarkdown, guardCreateBody } from "@/lib/validation";
 import {
   generateDocumentId,
   generatePassword,
@@ -12,6 +12,9 @@ import type { CreateDocumentResponse, ApiError } from "@/types/document";
 
 export async function POST(request: Request) {
   try {
+    const sizeError = await guardCreateBody(request);
+    if (sizeError) return sizeError;
+
     const body = await request.json().catch(() => null);
 
     if (!body || typeof body !== "object") {

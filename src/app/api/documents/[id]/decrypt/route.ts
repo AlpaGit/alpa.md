@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { validatePassword } from "@/lib/validation";
+import { validatePassword, guardDecryptBody } from "@/lib/validation";
 import { getDocumentById } from "@/lib/storage";
 import { decryptMarkdown } from "@/lib/crypto";
 import type { DecryptDocumentResponse, ApiError } from "@/types/document";
@@ -9,6 +9,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const sizeError = await guardDecryptBody(request);
+    if (sizeError) return sizeError;
+
     const { id } = await params;
 
     const body = await request.json().catch(() => null);
