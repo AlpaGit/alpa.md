@@ -28,11 +28,12 @@ function useCopyButton(text: string) {
 export default function ResultPanel({ readUrl, password, onReset }: ResultPanelProps) {
   const [showPassword, setShowPassword] = useState(false);
 
-  const fullUrl = typeof window !== "undefined"
-    ? `${window.location.origin}${readUrl}`
-    : readUrl;
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const fullUrl = `${origin}${readUrl}`;
+  const fullUrlWithPassword = `${fullUrl}#${password}`;
 
   const urlCopy = useCopyButton(fullUrl);
+  const urlWithPasswordCopy = useCopyButton(fullUrlWithPassword);
   const passwordCopy = useCopyButton(password);
 
   return (
@@ -68,6 +69,37 @@ export default function ResultPanel({ readUrl, password, onReset }: ResultPanelP
               {urlCopy.copied ? "Copied" : "Copy"}
             </button>
           </div>
+        </div>
+
+        {/* Link with embedded password */}
+        <div className="space-y-2">
+          <label className="block text-xs font-medium uppercase tracking-widest text-zinc-500">
+            Link with password
+          </label>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 min-w-0">
+              <LinkIcon size={16} weight="duotone" className="text-zinc-400 shrink-0" />
+              <span className="text-sm font-mono text-zinc-700 truncate">
+                {fullUrl}#••••••
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={urlWithPasswordCopy.copy}
+              className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50 active:scale-[0.98] transition-colors"
+              aria-label="Copy link with embedded password"
+            >
+              {urlWithPasswordCopy.copied ? (
+                <Check size={14} weight="bold" className="text-accent-600" />
+              ) : (
+                <Copy size={14} weight="duotone" className="text-zinc-400" />
+              )}
+              {urlWithPasswordCopy.copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <p className="text-xs text-zinc-400">
+            Opens and decrypts automatically. The password stays in the hash fragment and never reaches the server.
+          </p>
         </div>
 
         {/* Password */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Eye,
   EyeSlash,
@@ -30,21 +30,19 @@ export default function DecryptForm({ documentId }: DecryptFormProps) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<DecryptStatus>({ state: "idle" });
+  const autoDecryptAttempted = useRef(false);
 
   const isDecrypting = status.state === "decrypting";
   const isEmpty = password.length === 0;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (isEmpty || isDecrypting) return;
-
+  async function attemptDecrypt(pw: string) {
     setStatus({ state: "decrypting" });
 
     try {
       const res = await fetch(`/api/documents/${documentId}/decrypt`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password: pw }),
       });
 
       if (!res.ok) {
@@ -82,6 +80,28 @@ export default function DecryptForm({ documentId }: DecryptFormProps) {
         code: "network",
       });
     }
+  }
+
+  // Auto-decrypt from URL hash fragment (e.g. /r/abc123#thePassword)
+  useEffect(() => {
+    if (autoDecryptAttempted.current) return;
+    autoDecryptAttempted.current = true;
+
+    const hash = window.location.hash.slice(1); // strip leading #
+    if (!hash) return;
+
+    // Clear hash from URL bar to avoid leaking password in history/bookmarks
+    window.history.replaceState(null, "", window.location.pathname);
+
+    setPassword(hash);
+    attemptDecrypt(hash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (isEmpty || isDecrypting) return;
+    attemptDecrypt(password);
   }
 
   if (status.state === "success") {
