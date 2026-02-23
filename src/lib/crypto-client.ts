@@ -23,7 +23,6 @@ const PASSWORD_LENGTH = 24;
 
 /** Normalize markdown: CRLF → LF, strip control chars (except \\n \\t), trim */
 export function normalizeMarkdown(text: string): string {
-  // eslint-disable-next-line no-control-regex
   return text.replace(/\r\n/g, "\n").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "").trim();
 }
 

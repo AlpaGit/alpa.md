@@ -35,7 +35,6 @@ export function guardCreateBody(request: Request) {
 
 /** Normalize text: CRLF → LF, strip null bytes and other C0 control chars (except \n \r \t) */
 function normalizeText(text: string): string {
-  // eslint-disable-next-line no-control-regex
   return text.replace(/\r\n/g, "\n").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
 }
 
