@@ -1,4 +1,4 @@
-import { randomBytes, pbkdf2Sync, createCipheriv } from "node:crypto";
+import { randomBytes, pbkdf2Sync, createCipheriv, createDecipheriv } from "node:crypto";
 
 /**
  * URL-safe alphanumeric charset excluding ambiguous characters:
@@ -96,3 +96,42 @@ export const KDF_PARAMS = {
   iterations: KDF_ITERATIONS,
   keyLength: KDF_KEY_LENGTH,
 };
+
+// ---------------------------------------------------------------------------
+// Decryption
+// ---------------------------------------------------------------------------
+
+/**
+ * Decrypt AES-256-GCM ciphertext using a password-derived key.
+ * Returns the plaintext markdown string.
+ * Throws a generic error on any failure (wrong password, corrupt data, etc.)
+ * to avoid leaking information per FR-04.
+ */
+export function decryptMarkdown(
+  password: string,
+  ciphertextB64: string,
+  ivB64: string,
+  saltB64: string,
+  authTagB64: string,
+): string {
+  try {
+    const salt = Buffer.from(saltB64, "base64");
+    const iv = Buffer.from(ivB64, "base64");
+    const ciphertext = Buffer.from(ciphertextB64, "base64");
+    const authTag = Buffer.from(authTagB64, "base64");
+
+    const key = deriveKey(password, salt);
+
+    const decipher = createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(authTag);
+
+    const decrypted = Buffer.concat([
+      decipher.update(ciphertext),
+      decipher.final(),
+    ]);
+
+    return decrypted.toString("utf-8");
+  } catch {
+    throw new Error("Invalid password or data");
+  }
+}
