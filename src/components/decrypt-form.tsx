@@ -14,6 +14,7 @@ import {
   FileText,
 } from "@phosphor-icons/react";
 import MarkdownRenderer from "@/components/markdown-renderer";
+import { decryptMarkdown } from "@/lib/crypto-client";
 
 type ErrorCode = "not_found" | "invalid_password" | "generic" | "network";
 
@@ -40,11 +41,8 @@ export default function DecryptForm({ documentId }: DecryptFormProps) {
     setStatus({ state: "decrypting" });
 
     try {
-      const res = await fetch(`/api/documents/${documentId}/decrypt`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: pw }),
-      });
+      // Fetch the encrypted blob
+      const res = await fetch(`/api/documents/${documentId}`);
 
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -55,12 +53,6 @@ export default function DecryptForm({ documentId }: DecryptFormProps) {
             state: "error",
             message: "This document doesn\u2019t exist or may have been removed.",
             code: "not_found",
-          });
-        } else if (code === "invalid_password") {
-          setStatus({
-            state: "error",
-            message: "The password you entered is incorrect. Double-check and try again.",
-            code: "invalid_password",
           });
         } else {
           setStatus({
@@ -73,7 +65,24 @@ export default function DecryptForm({ documentId }: DecryptFormProps) {
       }
 
       const data = await res.json();
-      setStatus({ state: "success", markdown: data.markdown });
+
+      // Decrypt client-side
+      try {
+        const markdown = await decryptMarkdown(
+          pw,
+          data.ciphertextB64,
+          data.ivB64,
+          data.saltB64,
+          data.authTagB64,
+        );
+        setStatus({ state: "success", markdown });
+      } catch {
+        setStatus({
+          state: "error",
+          message: "The password you entered is incorrect. Double-check and try again.",
+          code: "invalid_password",
+        });
+      }
     } catch {
       setStatus({
         state: "error",

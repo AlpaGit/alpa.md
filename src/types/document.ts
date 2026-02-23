@@ -12,28 +12,37 @@ export type EncryptedDocument = {
   };
   createdAtIso: string;
   contentLength: number;
+  dedupeTag: string;
 };
 
-/** POST /api/documents — request */
+/** POST /api/documents — v2 request (client-encrypted payload) */
 export type CreateDocumentRequest = {
-  markdown: string;
+  ciphertextB64: string;
+  ivB64: string;
+  saltB64: string;
+  authTagB64: string;
+  contentHash: string;
+  contentLength: number;
 };
 
 /** POST /api/documents — response (201) */
 export type CreateDocumentResponse = {
   documentId: string;
   readUrl: string;
-  password: string;
+  deduplicated?: boolean;
 };
 
-/** POST /api/documents/[id]/decrypt — request */
-export type DecryptDocumentRequest = {
-  password: string;
-};
-
-/** POST /api/documents/[id]/decrypt — response (200) */
-export type DecryptDocumentResponse = {
-  markdown: string;
+/** GET /api/documents/[id] — response (encrypted blob for client-side decrypt) */
+export type EncryptedDocumentResponse = {
+  ciphertextB64: string;
+  ivB64: string;
+  saltB64: string;
+  authTagB64: string;
+  kdf: {
+    algorithm: "pbkdf2-sha256";
+    iterations: number;
+    keyLength: number;
+  };
 };
 
 /** Structured API error body */
@@ -43,8 +52,6 @@ export type ApiError = {
     | "empty_markdown"
     | "too_large"
     | "invalid_format"
-    | "missing_password"
-    | "invalid_password"
     | "not_found"
     | "rate_limited"
     | "server_error";

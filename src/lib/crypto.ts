@@ -1,12 +1,4 @@
-import { randomBytes, pbkdf2Sync, createCipheriv, createDecipheriv } from "node:crypto";
-
-/**
- * URL-safe alphanumeric charset excluding ambiguous characters:
- * Removed: 0, O, 1, l, I
- */
-const PASSWORD_CHARSET =
-  "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-const PASSWORD_LENGTH = 24;
+import { randomBytes, createHmac } from "node:crypto";
 
 const DOCUMENT_ID_CHARSET =
   "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -32,106 +24,26 @@ function secureRandomString(length: number, charset: string): string {
   return result.join("");
 }
 
-/** Generate a 24-character secure password (URL-safe, no ambiguous chars) */
-export function generatePassword(): string {
-  return secureRandomString(PASSWORD_LENGTH, PASSWORD_CHARSET);
-}
-
 /** Generate a 12-character URL-safe document ID */
 export function generateDocumentId(): string {
   return secureRandomString(DOCUMENT_ID_LENGTH, DOCUMENT_ID_CHARSET);
 }
 
-// ---------------------------------------------------------------------------
-// Encryption
-// ---------------------------------------------------------------------------
-
-const KDF_ITERATIONS = 310_000;
-const KDF_KEY_LENGTH = 32; // 256 bits
-const SALT_BYTES = 16;
-const IV_BYTES = 12;
-
-export type EncryptionResult = {
-  ciphertextB64: string;
-  ivB64: string;
-  saltB64: string;
-  authTagB64: string;
-};
-
-/** Derive a 256-bit key from a password using PBKDF2-HMAC-SHA256 */
-function deriveKey(password: string, salt: Buffer): Buffer {
-  return pbkdf2Sync(password, salt, KDF_ITERATIONS, KDF_KEY_LENGTH, "sha256");
-}
-
 /**
- * Encrypt plaintext markdown with AES-256-GCM using a password-derived key.
- * Returns base64-encoded ciphertext, IV, salt, and auth tag.
+ * Compute a blinded dedupe tag from a client-provided content hash.
+ * Uses HMAC-SHA256 with a server-side pepper so raw content hashes
+ * are never stored — a DB breach won't allow offline existence checks.
+ * Falls back to raw hash if DEDUPE_PEPPER is not set (dev mode).
  */
-export function encryptMarkdown(
-  plaintext: string,
-  password: string,
-): EncryptionResult {
-  const salt = randomBytes(SALT_BYTES);
-  const iv = randomBytes(IV_BYTES);
-  const key = deriveKey(password, salt);
-
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf-8"),
-    cipher.final(),
-  ]);
-  const authTag = cipher.getAuthTag();
-
-  return {
-    ciphertextB64: encrypted.toString("base64"),
-    ivB64: iv.toString("base64"),
-    saltB64: salt.toString("base64"),
-    authTagB64: authTag.toString("base64"),
-  };
+export function computeDedupeTag(contentHash: string): string {
+  const pepper = process.env.DEDUPE_PEPPER;
+  if (!pepper) return contentHash;
+  return createHmac("sha256", pepper).update(contentHash).digest("hex");
 }
 
 /** KDF parameters exposed for storage records */
 export const KDF_PARAMS = {
   algorithm: "pbkdf2-sha256" as const,
-  iterations: KDF_ITERATIONS,
-  keyLength: KDF_KEY_LENGTH,
+  iterations: 310_000,
+  keyLength: 32,
 };
-
-// ---------------------------------------------------------------------------
-// Decryption
-// ---------------------------------------------------------------------------
-
-/**
- * Decrypt AES-256-GCM ciphertext using a password-derived key.
- * Returns the plaintext markdown string.
- * Throws a generic error on any failure (wrong password, corrupt data, etc.)
- * to avoid leaking information per FR-04.
- */
-export function decryptMarkdown(
-  password: string,
-  ciphertextB64: string,
-  ivB64: string,
-  saltB64: string,
-  authTagB64: string,
-): string {
-  try {
-    const salt = Buffer.from(saltB64, "base64");
-    const iv = Buffer.from(ivB64, "base64");
-    const ciphertext = Buffer.from(ciphertextB64, "base64");
-    const authTag = Buffer.from(authTagB64, "base64");
-
-    const key = deriveKey(password, salt);
-
-    const decipher = createDecipheriv("aes-256-gcm", key, iv);
-    decipher.setAuthTag(authTag);
-
-    const decrypted = Buffer.concat([
-      decipher.update(ciphertext),
-      decipher.final(),
-    ]);
-
-    return decrypted.toString("utf-8");
-  } catch {
-    throw new Error("Invalid password or data");
-  }
-}

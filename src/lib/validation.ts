@@ -5,7 +5,6 @@ const MAX_MARKDOWN_BYTES = 200 * 1024; // 200 KB
 
 // Body size limits (bytes) — includes JSON overhead above the markdown limit
 const BODY_LIMIT_CREATE = 256 * 1024; // 256 KB
-const BODY_LIMIT_DECRYPT = 4 * 1024; // 4 KB (password only)
 
 /**
  * Guard against oversized request bodies.
@@ -32,11 +31,6 @@ export async function guardBodySize(
 /** Pre-configured guard for the create endpoint (256 KB) */
 export function guardCreateBody(request: Request) {
   return guardBodySize(request, BODY_LIMIT_CREATE);
-}
-
-/** Pre-configured guard for the decrypt endpoint (4 KB) */
-export function guardDecryptBody(request: Request) {
-  return guardBodySize(request, BODY_LIMIT_DECRYPT);
 }
 
 /** Normalize text: CRLF → LF, strip null bytes and other C0 control chars (except \n \r \t) */
@@ -81,15 +75,3 @@ export function validateMarkdown(raw: unknown): ValidationResult {
   return { valid: true, markdown: normalized };
 }
 
-/** Validate the password field on the decrypt endpoint */
-export function validatePassword(raw: unknown): { valid: true; password: string } | { valid: false; code: "missing_password"; message: string } {
-  if (typeof raw !== "string" || raw.length === 0) {
-    return {
-      valid: false,
-      code: "missing_password",
-      message: "Password is required.",
-    };
-  }
-
-  return { valid: true, password: raw };
-}

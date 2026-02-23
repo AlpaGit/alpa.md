@@ -8,6 +8,12 @@ import {
   CircleNotch,
 } from "@phosphor-icons/react";
 import ResultPanel from "@/components/result-panel";
+import {
+  normalizeMarkdown,
+  hashContent,
+  derivePassword,
+  encryptMarkdown,
+} from "@/lib/crypto-client";
 
 const MAX_SIZE_BYTES = 200 * 1024;
 const ACCEPTED_TYPES = [
@@ -139,10 +145,24 @@ export default function CreateForm() {
     setStatus({ state: "creating" });
 
     try {
+      // Client-side encryption pipeline
+      const normalized = normalizeMarkdown(content);
+      const contentHash = await hashContent(normalized);
+      const password = await derivePassword(contentHash);
+      const encrypted = await encryptMarkdown(normalized, password);
+      const contentLength = new TextEncoder().encode(normalized).length;
+
       const res = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markdown: content }),
+        body: JSON.stringify({
+          ciphertextB64: encrypted.ciphertextB64,
+          ivB64: encrypted.ivB64,
+          saltB64: encrypted.saltB64,
+          authTagB64: encrypted.authTagB64,
+          contentHash,
+          contentLength,
+        }),
       });
 
       if (!res.ok) {
@@ -156,7 +176,7 @@ export default function CreateForm() {
       setStatus({
         state: "success",
         readUrl: data.readUrl,
-        password: data.password,
+        password,
       });
     } catch {
       setStatus({
@@ -331,7 +351,7 @@ export default function CreateForm() {
         {isCreating ? (
           <>
             <CircleNotch size={16} weight="bold" className="animate-spin" />
-            Creating...
+            Encrypting...
           </>
         ) : (
           <>
