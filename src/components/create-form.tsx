@@ -318,7 +318,7 @@ export default function CreateForm() {
         type="button"
         onClick={handleSubmit}
         disabled={isEmpty || isTooLarge || isCreating}
-        className="group inline-flex items-center gap-3 rounded-xl bg-zinc-900 px-6 py-3 text-sm font-medium text-white hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+        className="group inline-flex items-center gap-3 rounded-xl bg-zinc-900 px-6 py-3 text-sm font-medium text-white cursor-pointer hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none transition-colors"
       >
         {isCreating ? (
           <>
