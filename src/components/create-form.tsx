@@ -36,7 +36,9 @@ export default function CreateForm() {
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [status, setStatus] = useState<FormStatus>({ state: "idle" });
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounter = useRef(0);
 
   const effectiveContent = fileContent ?? markdown;
   const byteSize = new TextEncoder().encode(effectiveContent.trim()).length;
@@ -44,14 +46,11 @@ export default function CreateForm() {
   const isTooLarge = byteSize > MAX_SIZE_BYTES;
   const isCreating = status.state === "creating";
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function processFile(file: File) {
     setValidationError(null);
-    const file = e.target.files?.[0];
-    if (!file) return;
 
     if (!isAcceptedFile(file)) {
       setValidationError("Unsupported file type. Use .md, .markdown, or .txt files.");
-      e.target.value = "";
       return;
     }
 
@@ -61,7 +60,6 @@ export default function CreateForm() {
       const size = new TextEncoder().encode(text.trim()).length;
       if (size > MAX_SIZE_BYTES) {
         setValidationError(`File is too large (${(size / 1024).toFixed(1)} KB). Maximum is 200 KB.`);
-        e.target.value = "";
         return;
       }
       setFileContent(text);
@@ -69,9 +67,48 @@ export default function CreateForm() {
     };
     reader.onerror = () => {
       setValidationError("Failed to read file.");
-      e.target.value = "";
     };
     reader.readAsText(file);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processFile(file);
+  }
+
+  function handleDragEnter(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDragging(true);
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounter.current = 0;
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    processFile(file);
   }
 
   function clearFile() {
@@ -177,20 +214,36 @@ export default function CreateForm() {
         ) : (
           <label
             htmlFor="file-upload"
-            className={`group flex items-center gap-4 rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-5 cursor-pointer hover:border-accent-400 hover:bg-accent-50/30 transition-colors ${isCreating ? "opacity-40 pointer-events-none" : ""}`}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            className={`group flex items-center gap-4 rounded-xl border border-dashed px-6 py-5 cursor-pointer transition-colors ${
+              isCreating
+                ? "opacity-40 pointer-events-none border-zinc-300 bg-white"
+                : isDragging
+                  ? "border-accent-500 bg-accent-50/50"
+                  : "border-zinc-300 bg-white hover:border-accent-400 hover:bg-accent-50/30"
+            }`}
           >
             <FileArrowUp
               size={24}
               weight="duotone"
-              className="text-zinc-300 group-hover:text-accent-500 transition-colors"
+              className={`transition-colors ${isDragging ? "text-accent-500" : "text-zinc-300 group-hover:text-accent-500"}`}
             />
             <div>
               <p className="text-sm text-zinc-600">
-                Drop a <span className="font-mono text-zinc-500">.md</span> or{" "}
-                <span className="font-mono text-zinc-500">.txt</span> file here,
-                or click to browse
+                {isDragging ? (
+                  "Drop your file here"
+                ) : (
+                  <>
+                    Drop a <span className="font-mono text-zinc-500">.md</span> or{" "}
+                    <span className="font-mono text-zinc-500">.txt</span> file here,
+                    or click to browse
+                  </>
+                )}
               </p>
-              <p className="text-xs text-zinc-400 mt-1">Max 200 KB</p>
+              {!isDragging && <p className="text-xs text-zinc-400 mt-1">Max 200 KB</p>}
             </div>
           </label>
         )}
