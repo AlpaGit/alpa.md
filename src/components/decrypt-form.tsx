@@ -8,6 +8,7 @@ import {
   CircleNotch,
   WarningCircle,
 } from "@phosphor-icons/react";
+import MarkdownRenderer from "@/components/markdown-renderer";
 
 type DecryptStatus =
   | { state: "idle" }
@@ -67,18 +68,8 @@ export default function DecryptForm({ documentId }: DecryptFormProps) {
     }
   }
 
-  // Success: render markdown (placeholder — P3-T04 will add proper rendering)
   if (status.state === "success") {
-    return (
-      <div
-        id="markdown-output"
-        className="prose prose-zinc max-w-none font-sans text-zinc-800 leading-relaxed"
-      >
-        <pre className="whitespace-pre-wrap text-sm font-mono text-zinc-700 bg-white rounded-xl border border-zinc-200 px-6 py-5">
-          {status.markdown}
-        </pre>
-      </div>
-    );
+    return <MarkdownRenderer content={status.markdown} />;
   }
 
   return (
