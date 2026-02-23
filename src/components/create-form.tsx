@@ -46,7 +46,7 @@ export default function CreateForm() {
   const isTooLarge = byteSize > MAX_SIZE_BYTES;
   const isCreating = status.state === "creating";
 
-  function processFile(file: File) {
+  function processFile(file: File, autoSubmit = false) {
     setValidationError(null);
 
     if (!isAcceptedFile(file)) {
@@ -64,6 +64,9 @@ export default function CreateForm() {
       }
       setFileContent(text);
       setFileName(file.name);
+      if (autoSubmit) {
+        submitMarkdown(text.trim());
+      }
     };
     reader.onerror = () => {
       setValidationError("Failed to read file.");
@@ -74,7 +77,7 @@ export default function CreateForm() {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    processFile(file);
+    processFile(file, true);
   }
 
   function handleDragEnter(e: React.DragEvent) {
@@ -108,7 +111,7 @@ export default function CreateForm() {
 
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
-    processFile(file);
+    processFile(file, true);
   }
 
   function clearFile() {
@@ -130,8 +133,8 @@ export default function CreateForm() {
     setMarkdown(val);
   }
 
-  async function handleSubmit() {
-    if (isEmpty || isTooLarge || isCreating) return;
+  async function submitMarkdown(content: string) {
+    if (!content || isCreating) return;
 
     setStatus({ state: "creating" });
 
@@ -139,7 +142,7 @@ export default function CreateForm() {
       const res = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markdown: effectiveContent.trim() }),
+        body: JSON.stringify({ markdown: content }),
       });
 
       if (!res.ok) {
@@ -161,6 +164,11 @@ export default function CreateForm() {
         message: "Network error. Please check your connection and try again.",
       });
     }
+  }
+
+  function handleSubmit() {
+    if (isEmpty || isTooLarge) return;
+    submitMarkdown(effectiveContent.trim());
   }
 
   function handleReset() {
