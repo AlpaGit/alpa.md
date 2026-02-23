@@ -1,43 +1,29 @@
-import Database from "better-sqlite3";
-import path from "node:path";
-import { mkdirSync, existsSync } from "node:fs";
+import { neon } from "@neondatabase/serverless";
 import type { EncryptedDocument } from "@/types/document";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DATA_DIR, "documents.db");
-
-function ensureDataDir() {
-  if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true });
-  }
+function getDb() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL environment variable is not set");
+  return neon(url);
 }
 
-let _db: Database.Database | null = null;
-
-function getDb(): Database.Database {
-  if (_db) return _db;
-
-  ensureDataDir();
-  _db = new Database(DB_PATH);
-  _db.pragma("journal_mode = WAL");
-  _db.pragma("foreign_keys = ON");
-
-  _db.exec(`
+/** Run once at startup or deploy — creates the documents table if missing */
+export async function ensureSchema(): Promise<void> {
+  const sql = getDb();
+  await sql`
     CREATE TABLE IF NOT EXISTS documents (
-      id             TEXT PRIMARY KEY,
-      ciphertext_b64 TEXT NOT NULL,
-      iv_b64         TEXT NOT NULL,
-      salt_b64       TEXT NOT NULL,
-      auth_tag_b64   TEXT NOT NULL,
-      kdf_algorithm  TEXT NOT NULL,
-      kdf_iterations INTEGER NOT NULL,
-      kdf_key_length INTEGER NOT NULL,
-      created_at_iso TEXT NOT NULL,
-      content_length INTEGER NOT NULL
+      id              TEXT PRIMARY KEY,
+      ciphertext_b64  TEXT NOT NULL,
+      iv_b64          TEXT NOT NULL,
+      salt_b64        TEXT NOT NULL,
+      auth_tag_b64    TEXT NOT NULL,
+      kdf_algorithm   TEXT NOT NULL,
+      kdf_iterations  INTEGER NOT NULL,
+      kdf_key_length  INTEGER NOT NULL,
+      created_at_iso  TEXT NOT NULL,
+      content_length  INTEGER NOT NULL
     )
-  `);
-
-  return _db;
+  `;
 }
 
 type DocumentRow = {
@@ -72,36 +58,28 @@ function rowToDocument(row: DocumentRow): EncryptedDocument {
 
 /** Persist an encrypted document record */
 export async function saveDocument(doc: EncryptedDocument): Promise<void> {
-  const db = getDb();
-  db.prepare(`
+  const sql = getDb();
+  await ensureSchema();
+  await sql`
     INSERT INTO documents (
       id, ciphertext_b64, iv_b64, salt_b64, auth_tag_b64,
       kdf_algorithm, kdf_iterations, kdf_key_length,
       created_at_iso, content_length
     ) VALUES (
-      @id, @ciphertext_b64, @iv_b64, @salt_b64, @auth_tag_b64,
-      @kdf_algorithm, @kdf_iterations, @kdf_key_length,
-      @created_at_iso, @content_length
+      ${doc.id}, ${doc.ciphertextB64}, ${doc.ivB64}, ${doc.saltB64}, ${doc.authTagB64},
+      ${doc.kdf.algorithm}, ${doc.kdf.iterations}, ${doc.kdf.keyLength},
+      ${doc.createdAtIso}, ${doc.contentLength}
     )
-  `).run({
-    id: doc.id,
-    ciphertext_b64: doc.ciphertextB64,
-    iv_b64: doc.ivB64,
-    salt_b64: doc.saltB64,
-    auth_tag_b64: doc.authTagB64,
-    kdf_algorithm: doc.kdf.algorithm,
-    kdf_iterations: doc.kdf.iterations,
-    kdf_key_length: doc.kdf.keyLength,
-    created_at_iso: doc.createdAtIso,
-    content_length: doc.contentLength,
-  });
+  `;
 }
 
 /** Retrieve an encrypted document by ID, or null if not found */
 export async function getDocumentById(
   id: string,
 ): Promise<EncryptedDocument | null> {
-  const db = getDb();
-  const row = db.prepare("SELECT * FROM documents WHERE id = ?").get(id) as DocumentRow | undefined;
-  return row ? rowToDocument(row) : null;
+  const sql = getDb();
+  await ensureSchema();
+  const rows = await sql`SELECT * FROM documents WHERE id = ${id}`;
+  if (rows.length === 0) return null;
+  return rowToDocument(rows[0] as DocumentRow);
 }
